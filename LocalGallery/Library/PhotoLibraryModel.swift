@@ -2,6 +2,7 @@ import Foundation
 import GalleryCore
 import Observation
 import Photos
+import PhotosUI
 import UIKit
 
 enum LibraryContent: Equatable {
