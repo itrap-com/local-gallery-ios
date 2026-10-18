@@ -1,0 +1,21 @@
+# Xcode and SwiftPM build output
+DerivedData/
+build/
+xcuserdata/
+*.xcuserstate
+*.xcresult
+*.xcarchive
+.build/
+.swiftpm/
+
+# Signing material never enters this repository
+*.p8
+*.p12
+*.cer
+*.csr
+*.key
+*.pem
+*.mobileprovision
+*.keychain-db
+
+.DS_Store
