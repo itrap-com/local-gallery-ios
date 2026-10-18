@@ -121,13 +121,12 @@ APP_COMMON = {
 }
 # Debug builds run on the simulator, where CI disables signing.
 APP_DEBUG = {"CODE_SIGN_STYLE": "Automatic"}
-# Release builds are archived for TestFlight. CI passes LG_TEAM_ID and LG_PROFILE_NAME, so no team
-# id or profile name is committed and signing material lives only in the release environment.
+# Release builds are archived unsigned for TestFlight and signed at export by Apple's cloud-managed
+# distribution certificate (the App Store Connect API key in the release environment). CI passes
+# LG_TEAM_ID, so no team id is committed and no certificate or profile exists anywhere.
 APP_RELEASE = {
-    "CODE_SIGN_STYLE": "Manual",
-    "CODE_SIGN_IDENTITY[sdk=iphoneos*]": "Apple Distribution",
+    "CODE_SIGN_STYLE": "Automatic",
     "DEVELOPMENT_TEAM": "$(LG_TEAM_ID)",
-    "PROVISIONING_PROFILE_SPECIFIER": "$(LG_PROFILE_NAME)",
 }
 
 TESTS_COMMON = {
