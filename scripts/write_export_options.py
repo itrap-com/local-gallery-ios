@@ -6,7 +6,7 @@
 import plistlib
 import sys
 
-BUNDLE_ID = "local-gallery.ios"
+BUNDLE_ID = "Local-gallery.ios"
 
 
 def main():

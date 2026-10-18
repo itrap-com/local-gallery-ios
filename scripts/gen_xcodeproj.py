@@ -21,7 +21,7 @@ SCHEME = PROJECT_DIR / "xcshareddata" / "xcschemes" / "LocalGallery.xcscheme"
 
 APP = "LocalGallery"
 TESTS = "LocalGalleryTests"
-BUNDLE_ID = "local-gallery.ios"
+BUNDLE_ID = "Local-gallery.ios"
 CORE_PACKAGE_DIR = "Core"
 CORE_PRODUCT = "GalleryCore"
 

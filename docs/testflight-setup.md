@@ -13,7 +13,7 @@ App Store Connect → Apps → **+** → New App.
 - Platform: iOS.
 - Name: a store name of your choice. The store name must be unique; the home-screen name stays "Gallery".
 - Primary language: your choice.
-- Bundle ID: `local-gallery.ios`.
+- Bundle ID: `Local-gallery.ios`.
 - SKU: any string, for example `local-gallery-ios`.
 - User access: Full.
 
@@ -46,7 +46,7 @@ openssl pkcs12 -export -legacy -inkey dist.key -in dist.pem -name "Apple Distrib
 
 developer.apple.com → Profiles → **+**:
 1. Choose Distribution, **App Store Connect**.
-2. Pick the App ID `local-gallery.ios`.
+2. Pick the App ID `Local-gallery.ios`.
 3. Pick the certificate from step 2.
 4. Name it, for example `Local Gallery App Store`.
 5. Download the `.mobileprovision` file.
