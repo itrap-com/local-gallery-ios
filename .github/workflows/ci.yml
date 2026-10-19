@@ -87,6 +87,10 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
       - name: Networking-symbol scan of the app build
         run: python3 scripts/scan_network_symbols.py "$RUNNER_TEMP/dd-app/Build/Products/Release-iphonesimulator/LocalGallery.app"
+      # The limited-library picker is a PhotosUI category reached by message send, so nothing
+      # forces the linker to keep PhotosUI. Without it, Manage selection crashes at runtime.
+      - name: PhotosUI is linked (limited-library picker)
+        run: otool -L "$RUNNER_TEMP/dd-app/Build/Products/Release-iphonesimulator/LocalGallery.app/LocalGallery" | grep -q "/PhotosUI.framework/PhotosUI"
       - name: Keep the test results
         if: always()
         uses: actions/upload-artifact@v4

@@ -111,6 +111,10 @@ APP_COMMON = {
         "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
     ),
     "LD_RUNPATH_SEARCH_PATHS": ["$(inherited)", "@executable_path/Frameworks"],
+    # presentLimitedLibraryPicker(from:) is a PhotosUI category on PHPhotoLibrary, reached by message
+    # send with no PhotosUI symbol, so the linker drops the auto-linked framework. Link it explicitly
+    # so the category is loaded and Manage selection doesn't crash with an unrecognized selector.
+    "OTHER_LDFLAGS": ["$(inherited)", "-framework", "PhotosUI"],
     "MARKETING_VERSION": "0.1.0",
     "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_ID,
     "PRODUCT_NAME": "$(TARGET_NAME)",
