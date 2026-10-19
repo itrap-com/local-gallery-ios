@@ -10,12 +10,13 @@ struct ViewerStart: Identifiable {
 /// The full-screen viewer: swipe sideways between items, pinch or double-tap to zoom, swipe down
 /// or tap Close to return. Tapping a photo hides or shows the controls.
 ///
-/// It reads the same fetch result as the timeline. When the library changes while it is open, it
+/// It reads the same feed as the grid it was opened from. When the library changes while it is open, it
 /// stays on the same item; if that item is gone it shows its neighbour, and it closes when nothing
 /// visible is left.
 struct ViewerScreen: View {
     @Environment(PhotoLibraryModel.self) private var library
     @Environment(\.dismiss) private var dismiss
+    let feed: MediaFeed
 
     @State private var position: Int?
     @State private var currentAsset: PHAsset?
@@ -23,9 +24,11 @@ struct ViewerScreen: View {
     @State private var isZoomed = false
     @State private var dismissProgress = 0.0
     @State private var showsDetails = false
+    @State private var actions = MediaActions()
     private let startIndex: Int
 
-    init(startIndex: Int) {
+    init(feed: MediaFeed, startIndex: Int) {
+        self.feed = feed
         self.startIndex = startIndex
         _position = State(initialValue: startIndex)
     }
@@ -33,7 +36,7 @@ struct ViewerScreen: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            if let assets = library.assets, assets.count > 0 {
+            if let assets = feed.assets, assets.count > 0 {
                 pager(assets)
             }
             chrome
@@ -50,11 +53,12 @@ struct ViewerScreen: View {
                     .presentationDetents([.medium, .large])
             }
         }
-        .onAppear { follow(library.assets) }
-        .onChange(of: library.assets) { _, assets in follow(assets) }
+        .mediaActions(actions)
+        .onAppear { follow(feed.assets) }
+        .onChange(of: feed.assets) { _, assets in follow(assets) }
         .onChange(of: position) { _, index in
             isZoomed = false
-            if let index, let assets = library.assets, index < assets.count {
+            if let index, let assets = feed.assets, index < assets.count {
                 let asset = assets.object(at: index)
                 currentAsset = asset
                 // A video page leaves taps to the player's own controls, so Close must stay visible.
@@ -139,13 +143,41 @@ struct ViewerScreen: View {
                     .accessibilityElement(children: .combine)
                 }
                 Spacer(minLength: 12)
-                ChromeButton(symbol: "info.circle", label: "Details") { showsDetails = true }
-                    .disabled(currentAsset == nil)
+                // Balances the close button so the date stays centred.
+                Color.clear.frame(width: 44, height: 44)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
             Spacer()
+            if let currentAsset {
+                bottomBar(currentAsset)
+            }
         }
+    }
+
+    private func bottomBar(_ asset: PHAsset) -> some View {
+        let isFavorite = library.favorites.contains(asset)
+        return HStack {
+            ShareMenu(assets: { [asset] }, actions: actions) {
+                ChromeIcon(symbol: "square.and.arrow.up")
+            }
+            Spacer()
+            ChromeButton(
+                symbol: isFavorite ? "heart.fill" : "heart",
+                label: isFavorite ? "Remove from favorites" : "Add to favorites"
+            ) {
+                library.favorites.toggle([asset])
+            }
+            Spacer()
+            ChromeButton(symbol: "info.circle", label: "Details") { showsDetails = true }
+            Spacer()
+            ChromeButton(symbol: "trash", label: "Delete") {
+                Task { _ = await actions.delete([asset], library: library) }
+            }
+        }
+        .padding(.horizontal, 24)
+        // On a video, sit above the system player's own controls.
+        .padding(.bottom, asset.mediaType == .video ? 96 : 8)
     }
 
     private func step(_ delta: Int, count: Int) {
@@ -183,12 +215,20 @@ private struct ChromeButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(.ultraThinMaterial, in: Circle())
+            ChromeIcon(symbol: symbol)
         }
         .accessibilityLabel(label)
+    }
+}
+
+private struct ChromeIcon: View {
+    let symbol: String
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.white)
+            .frame(width: 44, height: 44)
+            .background(.ultraThinMaterial, in: Circle())
     }
 }

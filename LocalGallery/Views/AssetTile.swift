@@ -6,6 +6,9 @@ import SwiftUI
 struct AssetTile: View {
     let asset: PHAsset
     let imageManager: PHCachingImageManager
+    var isFavorite = false
+    /// nil outside select mode.
+    var isSelected: Bool? = nil
 
     @State private var image: UIImage?
     @State private var phase: Phase = .loading
@@ -38,6 +41,30 @@ struct AssetTile: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .overlay(alignment: .bottomLeading) {
+                if isFavorite {
+                    Image(systemName: "heart.fill")
+                        .font(.caption)
+                        .foregroundStyle(.white)
+                        .shadow(radius: 2)
+                        .padding(5)
+                }
+            }
+            .overlay {
+                if isSelected == true {
+                    Color.black.opacity(0.25)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if let isSelected {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, isSelected ? Color.accentColor : Color.black.opacity(0.2))
+                        .shadow(radius: 2)
+                        .padding(5)
+                }
+            }
             .overlay(alignment: .bottomTrailing) {
                 if asset.mediaType == .video {
                     Text(Self.durationText(asset.duration))
@@ -59,6 +86,12 @@ struct AssetTile: View {
         var text = asset.mediaType == .video
             ? "Video, \(Int(asset.duration.rounded())) seconds"
             : "Photo"
+        if isSelected == true {
+            text = "Selected " + text.lowercased()
+        }
+        if isFavorite {
+            text += ", favorite"
+        }
         if phase == .inCloudOnly {
             text += ", in iCloud, not on this iPhone"
         }

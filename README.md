@@ -37,7 +37,7 @@ It has designed screens for every access state:
 
 Gallery never downloads iCloud originals.
 
-**Slice 2 (in progress):** tap any item to open the full-screen viewer:
+**Slice 2:** tap any item to open the full-screen viewer:
 - swipe sideways between items, pinch or double-tap to zoom, swipe down to close
 - the thumbnail shows at once, then full resolution, capped at 4096 px on the long edge
 - HDR stills use the display's extended range in the viewer; the grid stays SDR
@@ -45,6 +45,21 @@ Gallery never downloads iCloud originals.
 - videos play in the system player with its native controls
 - a Details sheet shows type, format, dimensions, length and dates. Location stays hidden until
   you tap Show location, and then appears as coordinates only. Nothing is looked up.
+
+**Slice 3 (in progress):** three tabs: Library, Albums and Search.
+- **Library:** filter to photos or videos, and choose 2–7 columns from the menu or by pinching.
+- **Albums:** Favorites; the system collections (Videos, Selfies, Live Photos, Screenshots,
+  Panoramas, Slo-mo, Time-lapse, Bursts, Portrait, Animated, RAW); and your own albums. Each shows
+  its newest item as a cover, with a count. Shared iCloud albums are left out.
+- **Favorites** are stored only in Gallery on this iPhone, never written to Photos and never
+  synced.
+- **Search** runs on the device. It understands kinds ("videos", "selfies", "favorites"), dates
+  ("2024", "october", "oct 2023") and album names.
+- **Select mode:** long-press or tap Select, then share, favorite or delete many items at once.
+- **Share without location:** removes GPS from photos without re-compressing them, and location
+  metadata from videos. "Share original" sends the file unchanged. Shared copies get random file
+  names and are deleted after sharing.
+- **Delete** always goes through the iOS confirmation.
 
 ## Building
 

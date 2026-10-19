@@ -13,7 +13,7 @@ struct RootView: View {
             case .denied, .restricted:
                 AccessDeniedView(restricted: library.access == .restricted)
             case .limited, .full:
-                TimelineScreen()
+                MainTabs()
             }
         }
         .onAppear {
@@ -23,6 +23,20 @@ struct RootView: View {
             if phase == .active {
                 library.refreshAccess()
             }
+        }
+    }
+}
+
+/// The three tabs, as in the Android app's bottom navigation.
+struct MainTabs: View {
+    var body: some View {
+        TabView {
+            TimelineScreen()
+                .tabItem { Label("Library", systemImage: "photo.on.rectangle") }
+            AlbumsScreen()
+                .tabItem { Label("Albums", systemImage: "rectangle.stack") }
+            SearchScreen()
+                .tabItem { Label("Search", systemImage: "magnifyingglass") }
         }
     }
 }
