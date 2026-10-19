@@ -19,3 +19,4 @@ xcuserdata/
 *.keychain-db
 
 .DS_Store
+__pycache__/
