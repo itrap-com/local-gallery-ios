@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>Gallery</string>
+	<string>Local Gallery</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Gallery shows the photos and videos on this iPhone. Nothing leaves your device.</string>
+	<string>Local Gallery shows the photos and videos on this iPhone. Nothing leaves your device.</string>
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
 	<true/>
 </dict>

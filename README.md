@@ -4,7 +4,7 @@ A private companion to Photos for iPhone: a local-first gallery that reads your 
 never sends anything anywhere. It is the iOS sibling of the Android Local Gallery app. The two apps
 share privacy rules and file formats, not code.
 
-On the home screen the app is called **Gallery**.
+On the home screen the app is called **Local Gallery**. App Store processing rejects the plain name "Gallery" as already taken (ITMS-90129), so the display name matches the App Store record.
 
 ## Privacy
 

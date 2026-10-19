@@ -11,7 +11,7 @@ private, outside any git checkout.
 
 App Store Connect → Apps → **+** → New App.
 - Platform: iOS.
-- Name: a store name of your choice. The store name must be unique; the home-screen name stays "Gallery".
+- Name: a store name of your choice. The store name must be unique. Use "Local Gallery": the app's display name is the same, and App Store processing rejects a display name that another app has taken (ITMS-90129).
 - Primary language: your choice.
 - Bundle ID: `Local-gallery.ios`.
 - SKU: any string, for example `local-gallery-ios`.
