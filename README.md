@@ -37,6 +37,15 @@ It has designed screens for every access state:
 
 Gallery never downloads iCloud originals.
 
+**Slice 2 (in progress):** tap any item to open the full-screen viewer:
+- swipe sideways between items, pinch or double-tap to zoom, swipe down to close
+- the thumbnail shows at once, then full resolution, capped at 4096 px on the long edge
+- HDR stills use the display's extended range in the viewer; the grid stays SDR
+- Live Photos play in place
+- videos play in the system player with its native controls
+- a Details sheet shows type, format, dimensions, length and dates. Location stays hidden until
+  you tap Show location, and then appears as coordinates only. Nothing is looked up.
+
 ## Building
 
 There is no Mac in this project's loop. GitHub Actions builds and tests on hosted macOS runners

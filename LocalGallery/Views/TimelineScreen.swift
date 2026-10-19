@@ -2,9 +2,11 @@ import GalleryCore
 import Photos
 import SwiftUI
 
-/// The read-only timeline: every visible photo and video, newest first, grouped by month.
+/// The read-only timeline: every visible photo and video, newest first, grouped by month. Tapping
+/// an item opens it in the full-screen viewer.
 struct TimelineScreen: View {
     @Environment(PhotoLibraryModel.self) private var library
+    @State private var viewer: ViewerStart?
 
     private let columns = [GridItem(.adaptive(minimum: 96, maximum: 180), spacing: 2)]
 
@@ -12,6 +14,10 @@ struct TimelineScreen: View {
         NavigationStack {
             content
                 .navigationTitle("Photos")
+        }
+        .fullScreenCover(item: $viewer) { start in
+            ViewerScreen(startIndex: start.index)
+                .environment(library)
         }
     }
 
@@ -45,7 +51,13 @@ struct TimelineScreen: View {
                     Section {
                         ForEach(section.range, id: \.self) { index in
                             if index < assets.count {
-                                AssetTile(asset: assets.object(at: index), imageManager: library.imageManager)
+                                Button {
+                                    viewer = ViewerStart(index: index)
+                                } label: {
+                                    AssetTile(asset: assets.object(at: index), imageManager: library.imageManager)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityHint("Opens full screen")
                             }
                         }
                     } header: {
