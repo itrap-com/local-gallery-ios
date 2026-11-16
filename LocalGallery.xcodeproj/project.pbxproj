@@ -18,11 +18,19 @@
 			remoteGlobalIDString = B22174ADB9FE15A61F55DB06;
 			remoteInfo = LocalGallery;
 		};
+		140B63528AD95F1E9DC3361B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CE93484555E0E0917244B6F6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B22174ADB9FE15A61F55DB06;
+			remoteInfo = LocalGallery;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		3810B7F3564A9C675665B9EE /* LocalGallery.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LocalGallery.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C59FCD913F54779F7B4431C1 /* LocalGalleryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LocalGalleryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		09737A0088728E53C858AB35 /* LocalGalleryUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LocalGalleryUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -34,6 +42,11 @@
 		8A8B6BF0559AC6E42CA09C3B /* LocalGalleryTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = LocalGalleryTests;
+			sourceTree = "<group>";
+		};
+		F53E9540E12626B875775F8D /* LocalGalleryUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = LocalGalleryUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -54,6 +67,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		651232905E318E710CB2383C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -62,6 +82,7 @@
 			children = (
 				662061D2A65ECCCF6A72764B /* LocalGallery */,
 				8A8B6BF0559AC6E42CA09C3B /* LocalGalleryTests */,
+				F53E9540E12626B875775F8D /* LocalGalleryUITests */,
 				F4FCFDADF19472180550992D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -71,6 +92,7 @@
 			children = (
 				3810B7F3564A9C675665B9EE /* LocalGallery.app */,
 				C59FCD913F54779F7B4431C1 /* LocalGalleryTests.xctest */,
+				09737A0088728E53C858AB35 /* LocalGalleryUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -124,6 +146,29 @@
 			productReference = C59FCD913F54779F7B4431C1 /* LocalGalleryTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		4550441E67D7C26716BFE2EC /* LocalGalleryUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D29F61DC9D953F993E6B1518 /* Build configuration list for PBXNativeTarget "LocalGalleryUITests" */;
+			buildPhases = (
+				D2FC49F941762599F02F6516 /* Sources */,
+				651232905E318E710CB2383C /* Frameworks */,
+				E3A453378DFC6009A8974978 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BA86FA6133D4ECA2DE527332 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				F53E9540E12626B875775F8D /* LocalGalleryUITests */,
+			);
+			name = LocalGalleryUITests;
+			packageProductDependencies = (
+			);
+			productName = LocalGalleryUITests;
+			productReference = 09737A0088728E53C858AB35 /* LocalGalleryUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -138,6 +183,10 @@
 						CreatedOnToolsVersion = 26.0;
 					};
 					018B247DA59A10D83FB39FB5 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = B22174ADB9FE15A61F55DB06;
+					};
+					4550441E67D7C26716BFE2EC = {
 						CreatedOnToolsVersion = 26.0;
 						TestTargetID = B22174ADB9FE15A61F55DB06;
 					};
@@ -162,6 +211,7 @@
 			targets = (
 				B22174ADB9FE15A61F55DB06 /* LocalGallery */,
 				018B247DA59A10D83FB39FB5 /* LocalGalleryTests */,
+				4550441E67D7C26716BFE2EC /* LocalGalleryUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -175,6 +225,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		01B15386F916CCD68BF9004F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E3A453378DFC6009A8974978 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -198,6 +255,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D2FC49F941762599F02F6516 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -205,6 +269,11 @@
 			isa = PBXTargetDependency;
 			target = B22174ADB9FE15A61F55DB06 /* LocalGallery */;
 			targetProxy = D49480DDE4AAD7061C3C1790 /* PBXContainerItemProxy */;
+		};
+		BA86FA6133D4ECA2DE527332 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B22174ADB9FE15A61F55DB06 /* LocalGallery */;
+			targetProxy = 140B63528AD95F1E9DC3361B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -407,6 +476,38 @@
 			};
 			name = Release;
 		};
+		8CF550824A6806E96A5A57E0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Local-gallery.ios.uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = LocalGallery;
+			};
+			name = Debug;
+		};
+		2EFF87E785FA961032FCF297 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Local-gallery.ios.uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = LocalGallery;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -433,6 +534,15 @@
 			buildConfigurations = (
 				DFEE5BCA4A85808EFFA287BF /* Debug */,
 				2E0FF7E86693F1B1C2E8D29E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D29F61DC9D953F993E6B1518 /* Build configuration list for PBXNativeTarget "LocalGalleryUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8CF550824A6806E96A5A57E0 /* Debug */,
+				2EFF87E785FA961032FCF297 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -38,6 +38,16 @@
                ReferencedContainer = "container:LocalGallery.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "4550441E67D7C26716BFE2EC"
+               BuildableName = "LocalGalleryUITests.xctest"
+               BlueprintName = "LocalGalleryUITests"
+               ReferencedContainer = "container:LocalGallery.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
