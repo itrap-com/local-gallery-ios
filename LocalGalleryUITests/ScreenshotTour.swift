@@ -26,6 +26,7 @@ final class ScreenshotTour: XCTestCase {
             try require(!app.tabBars.firstMatch.exists, "Tabs are showing although photo access should be denied.")
             capture(evidence.name("access"))
         case .empty:
+            try allowFullAccessIfAsked(app, evidence)
             try require(app.tabBars.firstMatch.waitForExistence(timeout: 30), "The tabs did not appear.")
             let emptyNote = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'has no photos yet'")).firstMatch
             guard emptyNote.waitForExistence(timeout: 30) else {
@@ -36,6 +37,9 @@ final class ScreenshotTour: XCTestCase {
             note("viewer: nothing to open in an empty library")
             try tourAlbumsAndSearch(app)
         case .full, .limited:
+            if evidence.access == .full {
+                try allowFullAccessIfAsked(app, evidence)
+            }
             try require(app.tabBars.firstMatch.waitForExistence(timeout: 30), "The tabs did not appear.")
             try require(Gallery.tiles(app).firstMatch.waitForExistence(timeout: 90),
                         "No photo or video appeared in the Library grid.")

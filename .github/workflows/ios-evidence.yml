@@ -58,7 +58,8 @@ jobs:
 
           # run_tests <name> [xcodebuild args...] runs the build-for-testing products with a result
           # bundle of its own. LG_ACCESS_STATE, LG_APPEARANCE and LG_TEXT_SIZE reach the test runner
-          # through the TEST_RUNNER_ prefix. Appends the outcome to the summary; returns xcodebuild's status.
+          # through the TEST_RUNNER_ prefix. Appends the outcome and the tests' notes to the summary;
+          # returns xcodebuild's status.
           run_tests() {
             local name=$1
             shift
@@ -83,6 +84,7 @@ jobs:
               tail -n 60 "$log"
             fi
             echo "- $name: $outcome (xcodebuild $rc; tests passed $passed, failed $failed, skipped $skipped)" >> "$RUNNER_TEMP/summary.md"
+            grep -Eo "Note: .*" "$log" | sort -u | sed -E "s/^Note: /  - /" >> "$RUNNER_TEMP/summary.md" || true
             return "$rc"
           }
           SH
@@ -180,8 +182,11 @@ jobs:
           PY
 
       - name: Set photo access
+        id: access
         run: |
           set -euo pipefail
+          # On the iOS 26 simulator grant leaves the app asking for access. The tests then allow full
+          # access in the system dialog, as a person does, and their note says so in the summary.
           case "$ACCESS" in
             full|empty) action=grant ;;
             denied) action=revoke ;;
@@ -205,8 +210,9 @@ jobs:
           done
           exit "$status"
 
+      # Runs when the tour fails too, so one run gives both results.
       - name: Performance
-        if: matrix.access == 'full'
+        if: ${{ !cancelled() && steps.access.outcome == 'success' && matrix.access == 'full' }}
         run: |
           # shellcheck disable=SC1091
           source "$RUNNER_TEMP/evidence.sh"
@@ -248,7 +254,7 @@ jobs:
       # The UI test target is in the shared scheme's test action, so ci.yml's plain `xcodebuild test`
       # now builds and runs it too. This proves that run still passes, with every UI test skipped.
       - name: Scheme compatibility (the full test action, as ci.yml runs it)
-        if: matrix.access == 'notdetermined'
+        if: ${{ !cancelled() && steps.access.outcome == 'success' && matrix.access == 'notdetermined' }}
         run: |
           # shellcheck disable=SC1091
           source "$RUNNER_TEMP/evidence.sh"
@@ -266,7 +272,7 @@ jobs:
             xcrun xcresulttool export attachments --path "$bundle" --output-path "$RUNNER_TEMP/attachments/$name" > /dev/null \
               || echo "- $name: xcresulttool could not export its attachments" >> "$RUNNER_TEMP/summary.md"
           done
-          python3 - "$RUNNER_TEMP/attachments" "$RUNNER_TEMP/screenshots" <<'PY' | tee -a "$RUNNER_TEMP/summary.md"
+          python3 - "$RUNNER_TEMP/attachments" "$RUNNER_TEMP/screenshots" "$RUNNER_TEMP/diagnostics" <<'PY' | tee -a "$RUNNER_TEMP/summary.md"
           import json
           import re
           import shutil
@@ -274,10 +280,25 @@ jobs:
           from pathlib import Path
 
           # xcresulttool writes each attachment under a generated file name, plus a manifest.json that
-          # maps it to the name the test gave it with "_<index>_<UUID>" appended. Copy each one out as
-          # <screen>-<access>-<appearance>-<textsize>.png.
-          source, target = Path(sys.argv[1]), Path(sys.argv[2])
-          copied, problems = 0, []
+          # maps it to the name the test gave it with "_<index>_<UUID>" appended. The tour's pictures,
+          # <screen>-<access>-<appearance>-<textsize>.png, go to the screenshots folder. Text the tests
+          # attach, and the UI hierarchy XCTest records when a test fails, go to diagnostics/<bundle>.
+          # Recordings and element descriptions stay in the result bundle.
+          OURS = re.compile(r"[a-z]+-(full|limited|denied|notdetermined|empty)-(light|dark|unset)-(default|ax5|unset)")
+          source, shots, diagnostics = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
+          counts, problems = {"screenshots": 0, "diagnostics": 0}, []
+
+
+          def copy(exported, folder, stem):
+              folder.mkdir(parents=True, exist_ok=True)
+              dest = folder / f"{stem}{exported.suffix}"
+              n = 2
+              while dest.exists():
+                  dest = folder / f"{stem}-{n}{exported.suffix}"
+                  n += 1
+              shutil.copy2(exported, dest)
+
+
           for manifest in sorted(source.glob("*/manifest.json")):
               try:
                   for test in json.loads(manifest.read_text()):
@@ -285,16 +306,15 @@ jobs:
                           exported = manifest.parent / item["exportedFileName"]
                           label = item.get("suggestedHumanReadableName") or exported.name
                           stem = re.sub(r"_\d+_[0-9A-Fa-f-]{36}$", "", Path(label).stem)
-                          dest = target / f"{stem}{exported.suffix}"
-                          n = 2
-                          while dest.exists():
-                              dest = target / f"{stem}-{n}{exported.suffix}"
-                              n += 1
-                          shutil.copy2(exported, dest)
-                          copied += 1
+                          if OURS.fullmatch(stem) and exported.suffix == ".png":
+                              copy(exported, shots, stem)
+                              counts["screenshots"] += 1
+                          elif OURS.fullmatch(stem) or stem.startswith("App UI hierarchy"):
+                              copy(exported, diagnostics / manifest.parent.name, stem)
+                              counts["diagnostics"] += 1
               except (AttributeError, KeyError, OSError, TypeError, ValueError) as error:
                   problems.append(f"{manifest.parent.name}: {type(error).__name__}")
-          print(f"- Screenshots exported: {copied}")
+          print(f"- Screenshots exported: {counts['screenshots']}; diagnostics: {counts['diagnostics']}, in the xcresult artifact")
           if problems:
               print(f"- Manifests not read: {', '.join(problems)}; the result bundles still hold every attachment")
           PY
@@ -357,7 +377,7 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      - name: Upload result bundles and logs
+      - name: Upload result bundles, logs and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -365,5 +385,6 @@ jobs:
           path: |
             ${{ runner.temp }}/results
             ${{ runner.temp }}/logs
+            ${{ runner.temp }}/diagnostics
           retention-days: 14
           if-no-files-found: warn

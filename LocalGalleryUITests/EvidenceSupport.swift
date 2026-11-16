@@ -70,6 +70,11 @@ enum Gallery {
         app.tabBars.buttons[title]
     }
 
+    /// The system's own UI, such as the photo-access dialog.
+    static var springboard: XCUIApplication {
+        XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    }
+
     /// Lets animations finish and thumbnails arrive, without blocking the run loop.
     static func settle(_ seconds: TimeInterval = 1.5) {
         _ = XCTWaiter.wait(for: [XCTestExpectation(description: "settle")], timeout: seconds)
@@ -87,9 +92,34 @@ extension XCTestCase {
         add(attachment)
     }
 
-    /// Records a note in the result bundle, such as a screen this build does not have.
+    /// Records a note in the result bundle, such as a screen this build does not have. The workflow
+    /// copies these "Note:" lines into the job summary.
     @MainActor
     func note(_ text: String) {
-        XCTContext.runActivity(named: text) { _ in }
+        XCTContext.runActivity(named: "Note: \(text)") { _ in }
+    }
+
+    /// Allows full photo access the way a person does when the app still asks for it: Continue, then
+    /// Allow Full Access in the system dialog. On the iOS 26 simulator `simctl privacy grant photos`
+    /// leaves the app asking, so the full and empty jobs get access this way, and a note says so.
+    /// Does nothing when the tabs show first.
+    @MainActor
+    func allowFullAccessIfAsked(_ app: XCUIApplication, _ evidence: Evidence) throws {
+        let tabs = app.tabBars.firstMatch
+        let ask = app.buttons["Continue"]
+        let deadline = Date().addingTimeInterval(30)
+        while !tabs.exists, !ask.exists, Date() < deadline {
+            Gallery.settle(0.5)
+        }
+        guard ask.exists else { return }
+        ask.tap()
+        let allow = Gallery.springboard.buttons.matching(NSPredicate(
+            format: "label BEGINSWITH[c] 'Allow Full Access' OR label ==[c] 'Allow Access to All Photos'"
+        )).firstMatch
+        let shown = allow.waitForExistence(timeout: 20)
+        capture(evidence.name("systemdialog"))
+        try require(shown, "The system photo-access dialog showed no Allow Full Access button.")
+        allow.tap()
+        note("access: simctl privacy grant left the app asking, so full access was allowed in the system dialog")
     }
 }
