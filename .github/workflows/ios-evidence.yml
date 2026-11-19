@@ -1,0 +1,390 @@
+name: iOS evidence
+
+# Screenshots and performance numbers from the real app on a fresh simulator whose photo library
+# holds only synthetic solid-color media (scripts/ci/make_fixture_media.py). One job per
+# photo-access state. No secrets, no signing, no environment.
+on:
+  push:
+    branches: ["ci/**", "feat/**"]
+    paths-ignore: ["**.md", "docs/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  evidence:
+    name: Evidence (${{ matrix.access }})
+    runs-on: macos-26
+    timeout-minutes: 40
+    # Limited access goes through the system dialog and picker, which may not be drivable. That job
+    # reports NOT RUN in its summary instead of failing the workflow.
+    continue-on-error: ${{ matrix.access == 'limited' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        access: [full, denied, notdetermined, empty, limited]
+    env:
+      ACCESS: ${{ matrix.access }}
+      BUNDLE_ID: Local-gallery.ios
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          mkdir -p "$RUNNER_TEMP/results" "$RUNNER_TEMP/logs" "$RUNNER_TEMP/screenshots" "$RUNNER_TEMP/attachments"
+          printf '### Evidence: %s\n\n' "$ACCESS" > "$RUNNER_TEMP/summary.md"
+          # Helpers for the test steps, which source this file.
+          cat > "$RUNNER_TEMP/evidence.sh" <<'SH'
+          # Sets the simulator's appearance and text size for the next test run.
+          set_look() {
+            xcrun simctl ui "$UDID" appearance "$1"
+            if [ "$2" = ax5 ]; then
+              xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large
+            else
+              xcrun simctl ui "$UDID" content_size large
+            fi
+          }
+
+          # run_tests <name> [xcodebuild args...] runs the build-for-testing products with a result
+          # bundle of its own. LG_ACCESS_STATE, LG_APPEARANCE and LG_TEXT_SIZE reach the test runner
+          # through the TEST_RUNNER_ prefix. Appends the outcome and the tests' notes to the summary;
+          # returns xcodebuild's status.
+          run_tests() {
+            local name=$1
+            shift
+            local log="$RUNNER_TEMP/logs/$name.log"
+            local rc=0
+            TEST_RUNNER_LG_ACCESS_STATE="${LG_ACCESS_STATE:-}" \
+            TEST_RUNNER_LG_APPEARANCE="${LG_APPEARANCE:-}" \
+            TEST_RUNNER_LG_TEXT_SIZE="${LG_TEXT_SIZE:-}" \
+              xcodebuild test-without-building \
+                -project LocalGallery.xcodeproj -scheme LocalGallery -configuration Debug \
+                -destination "platform=iOS Simulator,id=$UDID" \
+                -derivedDataPath "$RUNNER_TEMP/dd" \
+                -resultBundlePath "$RUNNER_TEMP/results/$name.xcresult" \
+                -parallel-testing-enabled NO \
+                "$@" > "$log" 2>&1 || rc=$?
+            local passed failed skipped outcome=PASS
+            passed=$(grep -Eic "test case .*passed" "$log" || true)
+            failed=$(grep -Eic "test case .*failed" "$log" || true)
+            skipped=$(grep -Eic "test case .*skipped" "$log" || true)
+            if [ "$rc" -ne 0 ]; then
+              outcome=FAILED
+              tail -n 60 "$log"
+            fi
+            echo "- $name: $outcome (xcodebuild $rc; tests passed $passed, failed $failed, skipped $skipped)" >> "$RUNNER_TEMP/summary.md"
+            grep -Eo "Note: .*" "$log" | sort -u | sed -E "s/^Note: /  - /" >> "$RUNNER_TEMP/summary.md" || true
+            return "$rc"
+          }
+          SH
+
+      - name: Fresh simulator
+        run: |
+          set -euo pipefail
+          udid=$(python3 - <<'PY'
+          import json
+          import subprocess
+
+
+          def simctl(*args):
+              return subprocess.run(["xcrun", "simctl", *args], capture_output=True, text=True, check=True).stdout
+
+
+          # A new device of the same type and runtime that scripts/pick_simulator.py chooses for ci.yml.
+          source = subprocess.run(["python3", "scripts/pick_simulator.py"], capture_output=True, text=True, check=True).stdout.strip()
+          for runtime, devices in json.loads(simctl("list", "devices", "-j"))["devices"].items():
+              for device in devices:
+                  if device["udid"] == source:
+                      print(simctl("create", "LG evidence", device["deviceTypeIdentifier"], runtime).strip())
+          PY
+          )
+          test -n "$udid"
+          echo "UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          # A new simulator ships sample photos. Remove them so the library holds only fixtures.
+          media="$HOME/Library/Developer/CoreSimulator/Devices/$udid/data/Media"
+          shipped=$( (find "$media/DCIM" -type f 2>/dev/null || true) | wc -l | tr -d ' ')
+          xcrun simctl shutdown "$udid"
+          rm -rf "$media/DCIM" "$media/PhotoData"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl status_bar "$udid" override --time 9:41
+          echo "- Simulator: a new device; $shipped sample media files removed before seeding" >> "$RUNNER_TEMP/summary.md"
+
+      - name: Build for testing
+        run: |
+          set -euo pipefail
+          if ! xcodebuild build-for-testing \
+              -project LocalGallery.xcodeproj -scheme LocalGallery -configuration Debug \
+              -destination "platform=iOS Simulator,id=$UDID" \
+              -derivedDataPath "$RUNNER_TEMP/dd" \
+              CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/logs/build.log" 2>&1; then
+            tail -n 120 "$RUNNER_TEMP/logs/build.log"
+            exit 1
+          fi
+          tail -n 3 "$RUNNER_TEMP/logs/build.log"
+          # Installed before access is set, so the photo-access state belongs to this install.
+          xcrun simctl install "$UDID" "$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/LocalGallery.app"
+
+      - name: Seed the photo library
+        run: |
+          set -euo pipefail
+          case "$ACCESS" in
+            full) count=10000 ;;
+            empty) count=0 ;;
+            *) count=50 ;;
+          esac
+          python3 scripts/ci/make_fixture_media.py "$RUNNER_TEMP/media" "$count" | tee -a "$RUNNER_TEMP/summary.md"
+          python3 - "$RUNNER_TEMP/media" <<'PY' | tee -a "$RUNNER_TEMP/summary.md"
+          import os
+          import subprocess
+          import sys
+          import time
+
+          # simctl addmedia in batches, within a 15-minute budget: when the first 2,000 pictures show
+          # that all of them would take longer, seeding stops at 2,000 and the summary says so. Past
+          # 2,000 it also stops if the budget runs out anyway.
+          BUDGET, PROBE, BATCH = 15 * 60, 2000, 250
+          media, udid = sys.argv[1], os.environ["UDID"]
+          names = sorted(os.listdir(media))
+          videos = [os.path.join(media, n) for n in names if n.endswith(".mp4")]
+          images = [os.path.join(media, n) for n in names if n.endswith(".png")]
+          batches = ([videos] if videos else []) + [images[i:i + BATCH] for i in range(0, len(images), BATCH)]
+          started, done_images, done_videos, note = time.monotonic(), 0, 0, ""
+          for batch in batches:
+              subprocess.run(["xcrun", "simctl", "addmedia", udid, *batch], check=True)
+              if batch is videos:
+                  done_videos = len(batch)
+              else:
+                  done_images += len(batch)
+              elapsed = time.monotonic() - started
+              if done_images < len(images) and done_images == PROBE:
+                  projected = elapsed / done_images * len(images)
+                  if projected > BUDGET:
+                      note = f"; stopped at {PROBE}: all {len(images)} would take about {projected / 60:.0f} min, past the 15-minute budget"
+                      break
+              if PROBE < done_images < len(images) and elapsed > BUDGET:
+                  note = f"; stopped at {done_images}: the 15-minute seeding budget ran out"
+                  break
+          print(f"- Seeded: {done_images} pictures and {done_videos} videos in {time.monotonic() - started:.0f} s{note}")
+          PY
+
+      - name: Set photo access
+        id: access
+        run: |
+          set -euo pipefail
+          # On the iOS 26 simulator grant leaves the app asking for access. The tests then allow full
+          # access in the system dialog, as a person does, and their note says so in the summary.
+          case "$ACCESS" in
+            full|empty) action=grant ;;
+            denied) action=revoke ;;
+            *) action=reset ;;
+          esac
+          xcrun simctl privacy "$UDID" "$action" photos "$BUNDLE_ID"
+          echo "- Photo access: simctl privacy $action photos" >> "$RUNNER_TEMP/summary.md"
+
+      - name: Screenshot tour
+        if: matrix.access != 'limited'
+        run: |
+          # shellcheck disable=SC1091
+          source "$RUNNER_TEMP/evidence.sh"
+          status=0
+          for appearance in light dark; do
+            for size in default ax5; do
+              set_look "$appearance" "$size"
+              export LG_ACCESS_STATE=$ACCESS LG_APPEARANCE=$appearance LG_TEXT_SIZE=$size
+              run_tests "tour-$ACCESS-$appearance-$size" -only-testing:LocalGalleryUITests/ScreenshotTour || status=1
+            done
+          done
+          exit "$status"
+
+      # Runs when the tour fails too, so one run gives both results.
+      - name: Performance
+        if: ${{ !cancelled() && steps.access.outcome == 'success' && matrix.access == 'full' }}
+        run: |
+          # shellcheck disable=SC1091
+          source "$RUNNER_TEMP/evidence.sh"
+          set_look light default
+          export LG_ACCESS_STATE=full LG_APPEARANCE=light LG_TEXT_SIZE=default
+          run_tests performance-full -only-testing:LocalGalleryUITests/PerformanceTests
+
+      - name: Limited access through the system picker (experimental)
+        if: matrix.access == 'limited'
+        run: |
+          # shellcheck disable=SC1091
+          source "$RUNNER_TEMP/evidence.sh"
+          set_look light default
+          export LG_ACCESS_STATE=limited LG_APPEARANCE=light LG_TEXT_SIZE=default
+          rc=0
+          run_tests limited-setup -only-testing:LocalGalleryUITests/LimitedAccessTests || rc=$?
+          log="$RUNNER_TEMP/logs/limited-setup.log"
+          if grep -Eiq "test case .*LimitedAccessTests.*skipped" "$log"; then
+            reason=$(grep -Eo "NOT RUN: [^\"]*" "$log" | head -n 1 || true)
+            reason=${reason#NOT RUN: }
+            echo "- Limited access: NOT RUN (${reason:-the system UI could not be driven}); the limited tour did not run" >> "$RUNNER_TEMP/summary.md"
+            exit 0
+          fi
+          if [ "$rc" -ne 0 ]; then
+            echo "- Limited access: FAILED, see limited-setup.xcresult" >> "$RUNNER_TEMP/summary.md"
+            exit 1
+          fi
+          echo "- Limited access: PASS, the grid showed exactly the 3 chosen items" >> "$RUNNER_TEMP/summary.md"
+          status=0
+          for appearance in light dark; do
+            for size in default ax5; do
+              set_look "$appearance" "$size"
+              export LG_APPEARANCE=$appearance LG_TEXT_SIZE=$size
+              run_tests "tour-limited-$appearance-$size" -only-testing:LocalGalleryUITests/ScreenshotTour || status=1
+            done
+          done
+          exit "$status"
+
+      # The UI test target is in the shared scheme's test action, so ci.yml's plain `xcodebuild test`
+      # now builds and runs it too. This proves that run still passes, with every UI test skipped.
+      - name: Scheme compatibility (the full test action, as ci.yml runs it)
+        if: ${{ !cancelled() && steps.access.outcome == 'success' && matrix.access == 'notdetermined' }}
+        run: |
+          # shellcheck disable=SC1091
+          source "$RUNNER_TEMP/evidence.sh"
+          set_look light default
+          export LG_ACCESS_STATE='' LG_APPEARANCE='' LG_TEXT_SIZE=''
+          run_tests scheme-all-tests
+
+      - name: Export screenshots from the result bundles
+        if: always()
+        run: |
+          shopt -s nullglob
+          for bundle in "$RUNNER_TEMP"/results/*.xcresult; do
+            name=$(basename "$bundle" .xcresult)
+            mkdir -p "$RUNNER_TEMP/attachments/$name"
+            xcrun xcresulttool export attachments --path "$bundle" --output-path "$RUNNER_TEMP/attachments/$name" > /dev/null \
+              || echo "- $name: xcresulttool could not export its attachments" >> "$RUNNER_TEMP/summary.md"
+          done
+          python3 - "$RUNNER_TEMP/attachments" "$RUNNER_TEMP/screenshots" "$RUNNER_TEMP/diagnostics" <<'PY' | tee -a "$RUNNER_TEMP/summary.md"
+          import json
+          import re
+          import shutil
+          import sys
+          from pathlib import Path
+
+          # xcresulttool writes each attachment under a generated file name, plus a manifest.json that
+          # maps it to the name the test gave it with "_<index>_<UUID>" appended. The tour's pictures,
+          # <screen>-<access>-<appearance>-<textsize>.png, go to the screenshots folder. Text the tests
+          # attach, and the UI hierarchy XCTest records when a test fails, go to diagnostics/<bundle>.
+          # Recordings and element descriptions stay in the result bundle.
+          OURS = re.compile(r"[a-z]+-(full|limited|denied|notdetermined|empty)-(light|dark|unset)-(default|ax5|unset)")
+          source, shots, diagnostics = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
+          counts, problems = {"screenshots": 0, "diagnostics": 0}, []
+
+
+          def copy(exported, folder, stem):
+              folder.mkdir(parents=True, exist_ok=True)
+              dest = folder / f"{stem}{exported.suffix}"
+              n = 2
+              while dest.exists():
+                  dest = folder / f"{stem}-{n}{exported.suffix}"
+                  n += 1
+              shutil.copy2(exported, dest)
+
+
+          for manifest in sorted(source.glob("*/manifest.json")):
+              try:
+                  for test in json.loads(manifest.read_text()):
+                      for item in test.get("attachments", []):
+                          exported = manifest.parent / item["exportedFileName"]
+                          label = item.get("suggestedHumanReadableName") or exported.name
+                          stem = re.sub(r"_\d+_[0-9A-Fa-f-]{36}$", "", Path(label).stem)
+                          if OURS.fullmatch(stem) and exported.suffix == ".png":
+                              copy(exported, shots, stem)
+                              counts["screenshots"] += 1
+                          elif OURS.fullmatch(stem) or stem.startswith("App UI hierarchy"):
+                              copy(exported, diagnostics / manifest.parent.name, stem)
+                              counts["diagnostics"] += 1
+              except (AttributeError, KeyError, OSError, TypeError, ValueError) as error:
+                  problems.append(f"{manifest.parent.name}: {type(error).__name__}")
+          print(f"- Screenshots exported: {counts['screenshots']}; diagnostics: {counts['diagnostics']}, in the xcresult artifact")
+          if problems:
+              print(f"- Manifests not read: {', '.join(problems)}; the result bundles still hold every attachment")
+          PY
+
+      - name: Performance numbers
+        if: always() && matrix.access == 'full'
+        run: |
+          bundle="$RUNNER_TEMP/results/performance-full.xcresult"
+          if [ ! -d "$bundle" ]; then
+            echo "- Performance: no result bundle" >> "$RUNNER_TEMP/summary.md"
+            exit 0
+          fi
+          xcrun xcresulttool get test-results metrics --path "$bundle" > "$RUNNER_TEMP/logs/metrics.json" 2> "$RUNNER_TEMP/logs/metrics.err" || true
+          python3 - "$RUNNER_TEMP/logs/metrics.json" <<'PY' | tee -a "$RUNNER_TEMP/summary.md"
+          import json
+          import statistics
+          import sys
+
+          # The mean of every metric in the bundle's metrics report, whatever its nesting.
+          try:
+              with open(sys.argv[1]) as handle:
+                  report = json.load(handle)
+          except (OSError, ValueError):
+              print("- Performance: xcresulttool gave no metrics report; open performance-full.xcresult in Xcode")
+              raise SystemExit(0)
+          rows = []
+
+
+          def walk(node, test=""):
+              if isinstance(node, dict):
+                  test = node.get("testIdentifier", test)
+                  values = node.get("measurements")
+                  name = node.get("displayName") or node.get("identifier")
+                  if isinstance(values, list) and values and name and all(isinstance(v, (int, float)) for v in values):
+                      rows.append((test, name, statistics.fmean(values), len(values), node.get("unitOfMeasurement", "")))
+                  for value in node.values():
+                      walk(value, test)
+              elif isinstance(node, list):
+                  for value in node:
+                      walk(value, test)
+
+
+          walk(report)
+          if not rows:
+              print("- Performance: no metrics found in the report; open performance-full.xcresult in Xcode")
+          for test, name, mean, count, unit in rows:
+              print(f"- {test} / {name}: mean {mean:.3f} {unit} over {count} iterations")
+          PY
+
+      - name: Job summary
+        if: always()
+        run: cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ matrix.access }}
+          path: ${{ runner.temp }}/screenshots
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Upload result bundles, logs and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult-${{ matrix.access }}
+          path: |
+            ${{ runner.temp }}/results
+            ${{ runner.temp }}/logs
+            ${{ runner.temp }}/diagnostics
+          retention-days: 14
+          if-no-files-found: warn
