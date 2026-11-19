@@ -1,10 +1,11 @@
 import Foundation
 
-/// The app-local favorites: PhotoKit identifiers, most recently added first, without duplicates.
+/// An app-local list of PhotoKit identifiers (Favorites, Hidden), most recently added first,
+/// without duplicates.
 ///
-/// Favorites never touch the photo library. An identifier whose item has gone simply matches
+/// These lists never touch the photo library. An identifier whose item has gone simply matches
 /// nothing; the list is never treated as proof that an item exists.
-public struct FavoriteList: Equatable, Sendable {
+public struct IdentifierList: Equatable, Sendable {
     public private(set) var ids: [String]
 
     public init(ids: [String] = []) {
@@ -52,9 +53,9 @@ public struct FavoriteList: Equatable, Sendable {
 
     /// Reads a stored list. Returns nil for data written by a newer format, so it is never
     /// overwritten by a downgrade; throws for damaged data.
-    public static func decode(_ data: Data) throws -> FavoriteList? {
+    public static func decode(_ data: Data) throws -> IdentifierList? {
         let stored = try JSONDecoder().decode(Stored.self, from: data)
         guard stored.version <= formatVersion else { return nil }
-        return FavoriteList(ids: stored.ids)
+        return IdentifierList(ids: stored.ids)
     }
 }

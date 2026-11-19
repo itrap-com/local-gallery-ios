@@ -112,9 +112,13 @@ final class ChangeRelay: NSObject, PHPhotoLibraryChangeObserver, @unchecked Send
     }
 }
 
-/// Fetch descriptions shared by every feed: images and videos only, newest first.
+/// Fetch descriptions shared by every feed: images and videos only, newest first, and never the
+/// items hidden in Gallery unless the Hidden album asks for them.
 enum MediaFetch {
-    static func options(_ extra: NSPredicate? = nil) -> PHFetchOptions {
+    /// The hidden identifiers, readable from the background fetches.
+    static let hiddenIDs = LockedIDs()
+
+    static func options(_ extra: NSPredicate? = nil, includeHidden: Bool = false) -> PHFetchOptions {
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         var predicates = [NSPredicate(
@@ -125,6 +129,10 @@ enum MediaFetch {
         if let extra {
             predicates.append(extra)
         }
+        let hidden = includeHidden ? [] : hiddenIDs.get()
+        if !hidden.isEmpty {
+            predicates.append(NSPredicate(format: "NOT (localIdentifier IN %@)", Array(hidden)))
+        }
         options.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
         return options
     }
@@ -133,8 +141,8 @@ enum MediaFetch {
         PHAsset.fetchAssets(with: options(filter.predicate))
     }
 
-    static func identifiers(_ ids: [String]) -> PHFetchResult<PHAsset> {
-        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: options())
+    static func identifiers(_ ids: [String], includeHidden: Bool = false) -> PHFetchResult<PHAsset> {
+        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: options(includeHidden: includeHidden))
     }
 
     static func collection(_ collection: PHAssetCollection) -> PHFetchResult<PHAsset> {
@@ -164,5 +172,24 @@ enum MediaFilter: String, CaseIterable, Identifiable, Sendable {
         case .photos: NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
         case .videos: NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)
         }
+    }
+}
+
+/// A set of identifiers shared between the main actor, which writes it, and background fetches,
+/// which read it.
+final class LockedIDs: @unchecked Sendable {
+    private let lock = NSLock()
+    private var ids: Set<String> = []
+
+    func get() -> Set<String> {
+        lock.lock()
+        defer { lock.unlock() }
+        return ids
+    }
+
+    func set(_ new: Set<String>) {
+        lock.lock()
+        ids = new
+        lock.unlock()
     }
 }

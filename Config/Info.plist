@@ -6,6 +6,8 @@
 	<string>Local Gallery</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Face ID unlocks your Hidden album in Local Gallery.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Local Gallery shows the photos and videos on this iPhone. Nothing leaves your device.</string>
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>

@@ -1,6 +1,12 @@
 import Photos
 import SwiftUI
 
+/// The photo the editor opens on.
+struct EditTarget: Identifiable {
+    let asset: PHAsset
+    var id: String { asset.localIdentifier }
+}
+
 /// Identifies which timeline item the viewer opens on.
 struct ViewerStart: Identifiable {
     let index: Int
@@ -25,6 +31,7 @@ struct ViewerScreen: View {
     @State private var dismissProgress = 0.0
     @State private var showsDetails = false
     @State private var actions = MediaActions()
+    @State private var editing: EditTarget?
     private let startIndex: Int
 
     init(feed: MediaFeed, startIndex: Int) {
@@ -54,6 +61,9 @@ struct ViewerScreen: View {
             }
         }
         .mediaActions(actions)
+        .fullScreenCover(item: $editing) { target in
+            EditorScreen(asset: target.asset)
+        }
         .onAppear { follow(feed.assets) }
         .onChange(of: feed.assets) { _, assets in follow(assets) }
         .onChange(of: position) { _, index in
@@ -123,6 +133,8 @@ struct ViewerScreen: View {
                 onDismissProgress: { dismissProgress = $0 },
                 onDismiss: { dismiss() }
             )
+            // A saved edit changes the modification date, so the page reloads its images.
+            .id(asset.modificationDate)
         }
     }
 
@@ -157,6 +169,7 @@ struct ViewerScreen: View {
 
     private func bottomBar(_ asset: PHAsset) -> some View {
         let isFavorite = library.favorites.contains(asset)
+        let isHidden = library.hidden.contains(asset)
         return HStack {
             ShareMenu(assets: { [asset] }, actions: actions) {
                 ChromeIcon(symbol: "square.and.arrow.up")
@@ -169,13 +182,21 @@ struct ViewerScreen: View {
                 library.favorites.toggle([asset])
             }
             Spacer()
+            if asset.mediaType == .image {
+                ChromeButton(symbol: "slider.horizontal.3", label: "Edit") { editing = EditTarget(asset: asset) }
+                Spacer()
+            }
             ChromeButton(symbol: "info.circle", label: "Details") { showsDetails = true }
+            Spacer()
+            ChromeButton(symbol: isHidden ? "eye" : "eye.slash", label: isHidden ? "Unhide" : "Hide") {
+                library.hidden.toggle([asset])
+            }
             Spacer()
             ChromeButton(symbol: "trash", label: "Delete") {
                 Task { _ = await actions.delete([asset], library: library) }
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 16)
         // On a video, sit above the system player's own controls.
         .padding(.bottom, asset.mediaType == .video ? 96 : 8)
     }

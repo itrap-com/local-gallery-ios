@@ -18,11 +18,19 @@ final class PhotoLibraryModel {
     /// Changes whenever access changes, so feeds know to fetch again.
     private(set) var accessGeneration = 0
 
+    /// True while the Hidden album has been unlocked in this session; the privacy shield covers
+    /// the app switcher's snapshot meanwhile.
+    var isHiddenUnlocked = false
+
     /// Grid columns, shared by every grid; pinch or the Library menu changes it.
     var gridColumns = 4
 
     let imageManager = PHCachingImageManager()
-    let favorites = FavoritesStore()
+    let favorites = IdentifierStore(fileName: "favorites.json")
+    /// Items hidden from Gallery's views. A view filter only: originals are untouched.
+    let hidden = IdentifierStore(fileName: "hidden.json") { ids in
+        MediaFetch.hiddenIDs.set(ids)
+    }
 
     init() {
         access = LibraryAccess(PHPhotoLibrary.authorizationStatus(for: .readWrite))
@@ -59,7 +67,9 @@ final class PhotoLibraryModel {
             try await PHPhotoLibrary.shared().performChanges {
                 PHAssetChangeRequest.deleteAssets(assets as NSArray)
             }
-            favorites.remove(assets.map(\.localIdentifier))
+            let ids = assets.map(\.localIdentifier)
+            favorites.remove(ids)
+            hidden.remove(ids)
             return true
         } catch let error as PHPhotosError where error.code == .userCancelled {
             return false
@@ -77,17 +87,22 @@ final class PhotoLibraryModel {
     }
 }
 
-/// App-local favorites, saved in Gallery's own container. Nothing is written to the photo library
-/// and nothing syncs anywhere.
+/// An app-local identifier list (Favorites or Hidden), saved in Gallery's own container with
+/// complete file protection. Nothing is written to the photo library and nothing syncs anywhere.
 @MainActor
 @Observable
-final class FavoritesStore {
-    private(set) var list = FavoriteList()
+final class IdentifierStore {
+    private(set) var list = IdentifierList()
     /// False when the saved file came from a newer Gallery, so this one never overwrites it.
     @ObservationIgnored private var writable = true
+    private let fileName: String
+    private let onChange: ((Set<String>) -> Void)?
 
-    init() {
+    init(fileName: String, onChange: ((Set<String>) -> Void)? = nil) {
+        self.fileName = fileName
+        self.onChange = onChange
         load()
+        onChange?(Set(list.ids))
     }
 
     func contains(_ asset: PHAsset) -> Bool {
@@ -96,24 +111,29 @@ final class FavoritesStore {
 
     func toggle(_ assets: [PHAsset]) {
         list.toggle(assets.map(\.localIdentifier))
-        save()
+        changed()
     }
 
     func remove(_ ids: [String]) {
         list.remove(ids)
+        changed()
+    }
+
+    private func changed() {
+        onChange?(Set(list.ids))
         save()
     }
 
-    private static var fileURL: URL? {
+    private var fileURL: URL? {
         guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
         else { return nil }
-        return base.appendingPathComponent("favorites.json", isDirectory: false)
+        return base.appendingPathComponent(fileName, isDirectory: false)
     }
 
     private func load() {
-        guard let url = Self.fileURL, let data = try? Data(contentsOf: url) else { return }
+        guard let url = fileURL, let data = try? Data(contentsOf: url) else { return }
         do {
-            if let stored = try FavoriteList.decode(data) {
+            if let stored = try IdentifierList.decode(data) {
                 list = stored
             } else {
                 writable = false
@@ -127,7 +147,7 @@ final class FavoritesStore {
     }
 
     private func save() {
-        guard writable, let url = Self.fileURL else { return }
+        guard writable, let url = fileURL else { return }
         do {
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(), withIntermediateDirectories: true

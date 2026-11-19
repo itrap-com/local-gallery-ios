@@ -46,7 +46,7 @@ Gallery never downloads iCloud originals.
 - a Details sheet shows type, format, dimensions, length and dates. Location stays hidden until
   you tap Show location, and then appears as coordinates only. Nothing is looked up.
 
-**Slice 3 (in progress):** three tabs: Library, Albums and Search.
+**Slice 3:** three tabs: Library, Albums and Search.
 - **Library:** filter to photos or videos, and choose 2–7 columns from the menu or by pinching.
 - **Albums:** Favorites; the system collections (Videos, Selfies, Live Photos, Screenshots,
   Panoramas, Slo-mo, Time-lapse, Bursts, Portrait, Animated, RAW); and your own albums. Each shows
@@ -60,6 +60,27 @@ Gallery never downloads iCloud originals.
   metadata from videos. "Share original" sends the file unchanged. Shared copies get random file
   names and are deleted after sharing.
 - **Delete** always goes through the iOS confirmation.
+
+**Hidden:** hide items from the viewer or in select mode. They disappear from the Library,
+albums, favorites and search. The Hidden album (Albums → Utilities) opens with Face ID or the
+passcode, stays locked on a phone without a passcode, and locks again whenever Gallery leaves the
+screen. A cover hides it in the app switcher.
+
+Hidden is a view filter, not encryption: the items stay in Photos, and other apps with photo
+access can still see them. The Vault, when it ships, is the encrypted option.
+
+**Editor (slice 5, in progress):**
+- **Crop:** Free, Original, Square, 4:3, 3:4, 16:9 or 9:16, plus rotate, flip and straighten.
+- **Adjust:** exposure, brightness, contrast, highlights, shadows, saturation, vibrance, warmth,
+  tint, sharpness and vignette.
+- **Other tools:** eight filters, auto-enhance, undo and redo, and touch-and-hold to compare with
+  the original.
+- **Save:** writes the edit and its recipe to Photos, so Photos can revert it and Gallery can
+  reopen and adjust it.
+- **Save as Copy:** creates a new photo with the original's date and location.
+
+Live Photos are saved as copies only, because an in-place still edit would drop their motion.
+Nothing is downloaded from iCloud to edit.
 
 ## Building
 

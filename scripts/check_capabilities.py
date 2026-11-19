@@ -16,6 +16,8 @@ PBXPROJ = ROOT / "LocalGallery.xcodeproj" / "project.pbxproj"
 ALLOWED_INFO_KEYS = {
     "CFBundleDisplayName",
     "ITSAppUsesNonExemptEncryption",
+    # Approved by the owner on 2026-10-19 for the Hidden album's Face ID unlock.
+    "NSFaceIDUsageDescription",
     "NSPhotoLibraryUsageDescription",
     "PHPhotoLibraryPreventAutomaticLimitedAccessAlert",
 }

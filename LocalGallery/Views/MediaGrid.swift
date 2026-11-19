@@ -42,6 +42,7 @@ struct MediaGrid<Banner: View, Empty: View>: View {
             }
             .mediaActions(actions)
             .onAppear { feed.loadIfNeeded() }
+            .onChange(of: library.hidden.list) { feed.reload() }
     }
 
     @ViewBuilder
@@ -127,7 +128,10 @@ struct MediaGrid<Banner: View, Empty: View>: View {
 
     private func selectedAssets() -> [PHAsset] {
         guard let selection, !selection.isEmpty else { return [] }
-        let result = PHAsset.fetchAssets(withLocalIdentifiers: Array(selection), options: MediaFetch.options())
+        // Hidden items included: the selection only ever comes from this grid, which may be Hidden.
+        let result = PHAsset.fetchAssets(
+            withLocalIdentifiers: Array(selection), options: MediaFetch.options(includeHidden: true)
+        )
         var assets: [PHAsset] = []
         assets.reserveCapacity(result.count)
         result.enumerateObjects { asset, _, _ in assets.append(asset) }
@@ -165,6 +169,15 @@ struct MediaGrid<Banner: View, Empty: View>: View {
                 .accessibilityLabel(allSelectedAreFavorites ? "Remove from favorites" : "Add to favorites")
                 .disabled(selection.isEmpty)
                 Spacer()
+                Button {
+                    library.hidden.toggle(selectedAssets())
+                    self.selection = nil
+                } label: {
+                    Image(systemName: allSelectedAreHidden ? "eye" : "eye.slash")
+                }
+                .accessibilityLabel(allSelectedAreHidden ? "Unhide" : "Hide")
+                .disabled(selection.isEmpty)
+                Spacer()
                 Button(role: .destructive) {
                     let assets = selectedAssets()
                     Task {
@@ -183,6 +196,11 @@ struct MediaGrid<Banner: View, Empty: View>: View {
                 Button("Select") { self.selection = [] }
             }
         }
+    }
+
+    private var allSelectedAreHidden: Bool {
+        guard let selection, !selection.isEmpty else { return false }
+        return selection.allSatisfy(library.hidden.list.contains)
     }
 
     private var allSelectedAreFavorites: Bool {

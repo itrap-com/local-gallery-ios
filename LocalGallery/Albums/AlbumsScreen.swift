@@ -20,7 +20,10 @@ struct AlbumsScreen: View {
                         if !model.user.isEmpty {
                             albumSection("My Albums", model.user)
                         }
+                        hiddenRow
                     }
+                    // Back at the album list means Hidden was left: lock it.
+                    .onAppear { library.isHiddenUnlocked = false }
                 } else {
                     ProgressView("Loading albums")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -30,10 +33,45 @@ struct AlbumsScreen: View {
             .navigationDestination(for: AlbumRoute.self) { route in
                 AlbumScreen(route: route)
             }
+            .navigationDestination(for: HiddenRoute.self) { _ in
+                HiddenScreen()
+            }
         }
         .onAppear { model.reload(favoriteIDs: library.favorites.list.ids) }
         .onChange(of: library.favorites.list) { _, list in model.reload(favoriteIDs: list.ids) }
         .onChange(of: library.accessGeneration) { model.reload(favoriteIDs: nil) }
+        .onChange(of: library.hidden.list) { model.reload(favoriteIDs: nil) }
+    }
+
+    /// No cover and no count: the row reveals nothing until it is unlocked.
+    private var hiddenRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Utilities")
+                .font(.title2.weight(.bold))
+                .accessibilityAddTraits(.isHeader)
+            NavigationLink(value: HiddenRoute()) {
+                HStack(spacing: 12) {
+                    Image(systemName: "eye.slash")
+                        .frame(width: 28)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Hidden")
+                            .font(.body.weight(.semibold))
+                        Text("Hidden from Gallery views · Face ID or passcode")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "lock.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .padding(14)
+                .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
     }
 
     private func albumSection(_ title: String?, _ albums: [AlbumSummary]) -> some View {
@@ -158,3 +196,6 @@ struct AlbumScreen: View {
         }
     }
 }
+
+/// Navigation value for the Hidden album.
+struct HiddenRoute: Hashable {}
