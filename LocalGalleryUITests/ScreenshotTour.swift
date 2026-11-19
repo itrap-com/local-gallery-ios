@@ -80,19 +80,28 @@ final class ScreenshotTour: XCTestCase {
 
     @MainActor
     private func tourAlbumsAndSearch(_ app: XCUIApplication) throws {
+        // Capture Search before Hidden can display system authentication.
+        // The tour does not dismiss or bypass Face ID or passcode prompts.
+        Gallery.tab(app, "Search").tap()
+        try require(app.navigationBars["Search"].waitForExistence(timeout: 15),
+                    "The Search tab did not open.")
+        capture(evidence.name("search"))
+
         Gallery.tab(app, "Albums").tap()
-        try require(app.navigationBars["Albums"].waitForExistence(timeout: 15), "The Albums tab did not open.")
+        try require(app.navigationBars["Albums"].waitForExistence(timeout: 15),
+                    "The Albums tab did not open.")
         capture(evidence.name("albums"))
+
+        // Hidden is the final stop because opening it can present the
+        // system authentication sheet on an otherwise fresh simulator.
         let hidden = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS 'Hidden from Gallery views'")).firstMatch
+
         if hidden.waitForExistence(timeout: 2) {
             hidden.tap()
             let bar = app.navigationBars["Hidden"]
             if bar.waitForExistence(timeout: 15) {
-                if try passHiddenPrompt(app) {
-                    capture(evidence.name("hidden"))
-                    bar.buttons.element(boundBy: 0).tap()
-                }
+                capture(evidence.name("hidden"))
             } else {
                 capture(evidence.name("hidden"))
                 note("hidden: opened, but its screen did not settle")
@@ -100,35 +109,5 @@ final class ScreenshotTour: XCTestCase {
         } else {
             note("hidden: not in this build")
         }
-        Gallery.tab(app, "Search").tap()
-        try require(app.navigationBars["Search"].waitForExistence(timeout: 15), "The Search tab did not open.")
-        capture(evidence.name("search"))
-    }
-
-    /// Opening Hidden asks for Face ID or the passcode straight away. The system draws that prompt
-    /// over the app, out of reach of the tour's taps, and the app hides its Unlock button until the
-    /// prompt ends. When it shows, the tour records it, then cancels it the way a person can: it
-    /// leaves the app and comes back, and relaunches the app if the prompt outlasts that. Hidden
-    /// stays locked either way. Returns whether the tour is still on Hidden.
-    @MainActor
-    private func passHiddenPrompt(_ app: XCUIApplication) throws -> Bool {
-        let unlock = app.buttons["Unlock"]
-        Gallery.settle(2)
-        if unlock.exists {
-            return true
-        }
-        capture(evidence.name("hiddenprompt"))
-        XCUIDevice.shared.press(.home)
-        app.activate()
-        if unlock.waitForExistence(timeout: 15) {
-            note("hidden: the Face ID or passcode prompt was cancelled by leaving the app")
-            return true
-        }
-        app.terminate()
-        app.launch()
-        try require(app.tabBars.firstMatch.waitForExistence(timeout: 30),
-                    "The tabs did not come back after relaunching past the Hidden prompt.")
-        note("hidden: the prompt outlasted leaving the app, so the tour relaunched the app")
-        return false
     }
 }
