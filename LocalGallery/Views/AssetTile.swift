@@ -70,7 +70,9 @@ struct AssetTile: View {
                     Text(Self.durationText(asset.duration))
                         .font(.caption2.monospacedDigit().weight(.semibold))
                         .foregroundStyle(.white)
-                        .shadow(radius: 2)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Color.black.opacity(0.6), in: Capsule())
                         .padding(4)
                 }
             }
